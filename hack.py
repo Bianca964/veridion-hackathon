@@ -1,70 +1,157 @@
-import unittest
-import requests_mock
-
+import json
+import numpy as np
 import requests
 from time import sleep
 import random
 
-
-#host = ""
-host = "http://127.0.0.1:5000"
+host = "http://172.18.4.158:8000"
 post_url = f"{host}/submit-word"
 get_url = f"{host}/get-word"
 status_url = f"{host}/status"
 
 NUM_ROUNDS = 5
 
+# Încarcă cuvintele din fisier
+with open("words.json", "r") as file:
+    words_data = json.load(file)
+
+# Transformă dicționarul într-o listă de tuple (id, text, cost)
+words_list = [(int(k), v["text"], v["cost"]) for k, v in words_data.items()]
+
+# Construim manual battle_map
+battle_map = {
+    # "Cup": "Plate",
+    # "Chalk": "Eraser",
+    # "Broom": "Vacuum",
+    # "Dust": "Water",
+    # "Glove": "Hand",
+    # Adaugă toate cele 60 de intrări manual
+    "Feather" : "Wind",
+    "Coal" : "Water",
+    "Pebble" : "Explosion",
+    "Leaf" : "Flame",
+    "Paper" : "Flame",
+    "Rock" : "Paper",
+    "Water" : "Tsunami",
+    "Twig" : "Flame",
+    "Sword" : "Shield",
+    "Shield" : "War",
+    "Gun" : "Explosion",
+    "Flame" : "Water",
+    "Rope" : "Sword",
+    "Disease" : "Cure",
+    "Cure" : "War",
+    "Bacteria": "Cure",
+    "Shadow" : "Light",
+    "Light" : "Moon",
+    "Virus" : "Vaccine",
+    "Sound" : "Peace",
+    "Time" : "Gravity",
+    "Fate" : "Karma",
+    "Earthquake" : "Tectonic Shift",
+    "Storm" : "Tsunami",
+    "Vaccine" : "Fate",
+    "Logic" : "Time",
+    "Gravity" : "Time",
+    "Robots" : "Human Spirit",
+    "Stone" : "Explosion",
+    "Echo" : "Explosion",
+    "Thunder" : "Antimatter",
+    "Karma" : "Fate",
+    "Wind" : "Supernova",
+    "Ice" : "Flame",
+    "Sandstorm" : "Earthquake",
+    "Laser" : "Explosion",
+    "Magma" : "Volcano",
+    "Peace" : "War",
+    "Explosion" : "Nuclear Bomb",
+    "War" : "Peace",
+    "Enlightenment" : "Rebirth",
+    "Nuclear Bomb" : "Supernova",
+    "Volcano" :  "Apocalyptic Meteor",
+    "Whale" : "Earth",
+    "Earth" : "Apocalyptic Meteor",
+    "Moon" : "Supernova",
+    "Star" : "Supernova",
+    "Tsunami" : "Sandstorm",
+    "Supernova" : "Neutron Star",
+    "Antimatter" : "Feather",
+    "Plague" : "Cure",
+    "Rebirth" : "Human Spirit",
+    "Tectonic Shift" : "Earth’s Core",
+    "Gamma-Ray Burst" : "Neutron Star",
+    "Human Spirit" : "Robots",
+    "Apocalyptic Meteor" : "Neutron Star",
+    "Earth’s Core" : "Moon",
+    "Neutron Star" : "Light",
+    "Supermassive Black Hole" : "Feather",
+    "Entropy" : "Pebble",
+}
+
+# Funcție pentru a transforma un cuvânt într-un vector de frecvență a literelor
+
+def word_to_vector(word):
+    vector = np.zeros(26)
+    for char in word.lower():
+        if 'a' <= char <= 'z':  # Ignoră caracterele non-alfabetice
+            vector[ord(char) - ord('a')] += 1
+    return vector
+
+# Funcție pentru a calcula similaritatea cosine între doi vectori
+def cosine_similarity(vec1, vec2):
+    norm1 = np.linalg.norm(vec1)
+    norm2 = np.linalg.norm(vec2)
+    if norm1 == 0 or norm2 == 0:
+        return 0  # Evită împărțirea la zero
+    return np.dot(vec1, vec2) / (norm1 * norm2)
+
+# Funcție pentru a găsi cel mai apropiat cuvânt din words_list
+def find_most_similar(word):
+    sys_vector = word_to_vector(word)
+    max_similarity = -1
+    best_match = None
+
+    for _, candidate_word, _ in words_list:
+        candidate_vector = word_to_vector(candidate_word)
+        similarity = cosine_similarity(sys_vector, candidate_vector)
+        if similarity > max_similarity:
+            max_similarity = similarity
+            best_match = candidate_word
+
+    return best_match
+
+# Funcția principală pentru alegerea cuvântului
 
 def what_beats(word):
-    sleep(random.randint(1, 3))
-    return random.randint(1, 60)
+    most_similar_word = find_most_similar(word)
+    if most_similar_word in battle_map:
+        return battle_map[most_similar_word]
+    return random.choice(words_list)[1]  # Dacă nu avem în battle_map, alegem random
 
 def play_game(player_id):
-
     for round_id in range(1, NUM_ROUNDS+1):
         round_num = -1
         while round_num != round_id:
             response = requests.get(get_url)
-            print(response.json())
             sys_word = response.json()['word']
             round_num = response.json()['round']
-
+            print(f"🔄 Round {round_num}: System played {sys_word}")
             sleep(1)
 
         if round_id > 1:
             status = requests.get(status_url)
             print(status.json())
 
-        choosen_word = what_beats(sys_word)
-        data = {"player_id": player_id, "word_id": choosen_word, "round_id": round_id}
+        chosen_word = what_beats(sys_word)
+        print(f"✅ Round {round_id}: I played {chosen_word}")
+
+        chosen_word_id = next((k for k, v in words_data.items() if v["text"] == chosen_word), None)
+        if chosen_word_id is None:
+            print("❌ Error: Word not found in words_data.")
+            return
+
+        data = {"player_id": player_id, "word_id": int(chosen_word_id), "round_id": round_id}
         response = requests.post(post_url, json=data)
         print(response.json())
 
-
-
-
-# test
-class TestGame(unittest.TestCase):
-    @requests_mock.Mocker()
-    def test_play_game(self, mock):
-        # Lista de runde simulate
-        round_responses = [
-            {"word": "rock", "round": 1},
-            {"word": "paper", "round": 2},
-            {"word": "scissors", "round": 3},
-            {"word": "lizard", "round": 4},
-            {"word": "spock", "round": 5}
-        ]
-
-        def get_word_callback(request, context):
-            """Simulează schimbarea rundelor."""
-            return round_responses.pop(0) if round_responses else {"word": "rock", "round": 5}
-
-        mock.get(get_url, json=get_word_callback)  # Simulează schimbarea rundelor
-        mock.get(status_url, json={"status": "ongoing"})
-        mock.post(post_url, json={"message": "Word submitted!"})
-
-        play_game(player_id=1)  # Ar trebui să ruleze fără a intra în buclă infinită
-
-if __name__ == "__main__":
-    unittest.main()
+play_game(player_id="AO4CUVWeGn")
