@@ -11,21 +11,14 @@ status_url = f"{host}/status"
 
 NUM_ROUNDS = 5
 
-# Încarcă cuvintele din fisier
+# Iau cuvintele din fisier
 with open("words.json", "r") as file:
     words_data = json.load(file)
 
-# Transformă dicționarul într-o listă de tuple (id, text, cost)
+# Transform dictionarul intr-o lista de tuple (id, text, cost)
 words_list = [(int(k), v["text"], v["cost"]) for k, v in words_data.items()]
 
-# Construim manual battle_map
 battle_map = {
-    # "Cup": "Plate",
-    # "Chalk": "Eraser",
-    # "Broom": "Vacuum",
-    # "Dust": "Water",
-    # "Glove": "Hand",
-    # Adaugă toate cele 60 de intrări manual
     "Feather" : "Wind",
     "Coal" : "Water",
     "Pebble" : "Explosion",
@@ -88,16 +81,15 @@ battle_map = {
     "Entropy" : "Pebble",
 }
 
-# Funcție pentru a transforma un cuvânt într-un vector de frecvență a literelor
-
+# Transform un cuvant intr-un vector de frecventa a literelor
 def word_to_vector(word):
     vector = np.zeros(26)
     for char in word.lower():
-        if 'a' <= char <= 'z':  # Ignoră caracterele non-alfabetice
+        if 'a' <= char <= 'z':  # Ignor caracterele non-alfabetice
             vector[ord(char) - ord('a')] += 1
     return vector
 
-# Funcție pentru a calcula similaritatea cosine între doi vectori
+# Calculez similaritatea cosine intre doi vectori
 def cosine_similarity(vec1, vec2):
     norm1 = np.linalg.norm(vec1)
     norm2 = np.linalg.norm(vec2)
@@ -105,7 +97,7 @@ def cosine_similarity(vec1, vec2):
         return 0  # Evită împărțirea la zero
     return np.dot(vec1, vec2) / (norm1 * norm2)
 
-# Funcție pentru a găsi cel mai apropiat cuvânt din words_list
+# Gasesc cel mai apropiat cuvant din words_list
 def find_most_similar(word):
     sys_vector = word_to_vector(word)
     max_similarity = -1
@@ -120,13 +112,11 @@ def find_most_similar(word):
 
     return best_match
 
-# Funcția principală pentru alegerea cuvântului
-
 def what_beats(word):
     most_similar_word = find_most_similar(word)
     if most_similar_word in battle_map:
         return battle_map[most_similar_word]
-    return random.choice(words_list)[1]  # Dacă nu avem în battle_map, alegem random
+    return random.choice(words_list)[1]  # Daca nu am in battle_map, aleg random
 
 def play_game(player_id):
     for round_id in range(1, NUM_ROUNDS+1):
