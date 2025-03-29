@@ -1,6 +1,10 @@
+import unittest
+import requests_mock
+
 import requests
 from time import sleep
 import random
+
 
 #host = ""
 host = "http://127.0.0.1:5000"
@@ -35,3 +39,32 @@ def play_game(player_id):
         data = {"player_id": player_id, "word_id": choosen_word, "round_id": round_id}
         response = requests.post(post_url, json=data)
         print(response.json())
+
+
+
+
+# test
+class TestGame(unittest.TestCase):
+    @requests_mock.Mocker()
+    def test_play_game(self, mock):
+        # Lista de runde simulate
+        round_responses = [
+            {"word": "rock", "round": 1},
+            {"word": "paper", "round": 2},
+            {"word": "scissors", "round": 3},
+            {"word": "lizard", "round": 4},
+            {"word": "spock", "round": 5}
+        ]
+
+        def get_word_callback(request, context):
+            """Simulează schimbarea rundelor."""
+            return round_responses.pop(0) if round_responses else {"word": "rock", "round": 5}
+
+        mock.get(get_url, json=get_word_callback)  # Simulează schimbarea rundelor
+        mock.get(status_url, json={"status": "ongoing"})
+        mock.post(post_url, json={"message": "Word submitted!"})
+
+        play_game(player_id=1)  # Ar trebui să ruleze fără a intra în buclă infinită
+
+if __name__ == "__main__":
+    unittest.main()
